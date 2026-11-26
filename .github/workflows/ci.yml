@@ -1,7 +1,10 @@
 name: CI
 
+# Las ramas de función se prueban en su pull request; el push solo dispara en main,
+# así un commit a una rama con PR abierto no corre el CI dos veces.
 on:
   push:
+    branches: [main]
   pull_request:
 
 permissions:
