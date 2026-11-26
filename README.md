@@ -63,7 +63,9 @@ Copia `.env.example` como `.env` en la raíz y cambia las contraseñas. El archi
 Copy-Item .env.example .env
 ```
 
-Docker Compose y el backend leen el mismo `.env`. Por defecto, `SPRING_PROFILES_ACTIVE=demo` carga los datos de Café La Ceiba.
+Docker Compose y el backend leen el mismo `.env`: el backend arma la conexión con `POSTGRES_PORT`, `POSTGRES_DB`, `POSTGRES_USER` y `POSTGRES_PASSWORD`, así que cada valor se define una sola vez. Por defecto, `SPRING_PROFILES_ACTIVE=demo` carga los datos de Café La Ceiba.
+
+Para conectarte a otra base en lugar de la de Docker Compose, define `DB_URL`, `DB_USERNAME` y `DB_PASSWORD`; si existen, tienen prioridad.
 
 ### 2. Base de datos
 
@@ -71,7 +73,7 @@ Docker Compose y el backend leen el mismo `.env`. Por defecto, `SPRING_PROFILES_
 docker compose up -d
 ```
 
-Levanta PostgreSQL 18 en el puerto 5432, con un volumen persistente.
+Levanta PostgreSQL 18 con un volumen persistente, en el puerto `POSTGRES_PORT` (5432 por defecto). Si ese puerto ya está ocupado, por ejemplo por un PostgreSQL instalado en Windows, cambia `POSTGRES_PORT` en `.env` (a 5433, por ejemplo); el backend usa el mismo valor.
 
 ### 3. Backend
 
