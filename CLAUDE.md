@@ -17,7 +17,7 @@ Se construye por fases. No avances a la siguiente fase sin que el usuario lo pid
 | 4. Reportes e IA | Historial simulado, panel de ventas, reporte semanal, preguntas a los datos | v0.5 |
 | 5. Demo pública | Despliegue, modo demo, video, README final | v1.0 |
 
-Fase actual: **0. Base**
+Fase actual: **1. Pedido a la mesa (MVP)**
 
 ## Stack
 
