@@ -185,3 +185,7 @@ npm run build
 ## CI
 
 [`.github/workflows/ci.yml`](.github/workflows/ci.yml) corre en cada push y pull request, con dos jobs: el backend (`./mvnw verify`, con Testcontainers) y la web (`npm ci`, lint y build).
+
+## Licencia
+
+Código bajo la [licencia MIT](LICENSE). © 2026 Santiago Sánchez Ramírez.
