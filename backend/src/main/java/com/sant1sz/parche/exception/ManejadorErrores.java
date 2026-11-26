@@ -10,10 +10,13 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ProblemDetail;
+import org.springframework.core.annotation.AnnotatedElementUtils;
 import org.springframework.http.ResponseEntity;
+import org.springframework.util.StringUtils;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.ServletWebRequest;
 import org.springframework.web.context.request.WebRequest;
@@ -55,22 +58,47 @@ public class ManejadorErrores extends ResponseEntityExceptionHandler {
         return handleExceptionInternal(ex, cuerpo, new HttpHeaders(), HttpStatus.NOT_FOUND, request);
     }
 
+    /**
+     * Último recurso. Si la excepción declara su estado con {@link ResponseStatus}, se respeta
+     * (no es un error del servidor); si no, responde 500 y registra el error.
+     *
+     * <p>Pendiente para la fase 1: cuando entre Spring Security, sus excepciones
+     * ({@code AccessDeniedException}, {@code AuthenticationException}) no deben caer aquí.
+     * Hay que manejarlas en el {@code AccessDeniedHandler} y el {@code AuthenticationEntryPoint}
+     * de la cadena de seguridad, o en manejadores propios que respondan 403 y 401 con este mismo cuerpo.
+     */
     @ExceptionHandler(Exception.class)
     ResponseEntity<Object> inesperado(Exception ex, WebRequest request) {
+        ResponseStatus anotacion = AnnotatedElementUtils.findMergedAnnotation(ex.getClass(), ResponseStatus.class);
+        if (anotacion != null) {
+            HttpStatus status = anotacion.code();
+            TextoError texto = TextoError.para(status);
+            String detalle = StringUtils.hasText(anotacion.reason()) ? anotacion.reason() : texto.detalle();
+            log.debug("Excepción con @ResponseStatus({}) en {}: {}", status.value(), ruta(request), ex.toString());
+            ProblemDetail cuerpo = problema(status, texto.codigo(), detalle);
+            return handleExceptionInternal(ex, cuerpo, new HttpHeaders(), status, request);
+        }
+
         log.error("Error no controlado en {}", ruta(request), ex);
         ProblemDetail cuerpo = problema(HttpStatus.INTERNAL_SERVER_ERROR, "ERROR_INTERNO",
                 "Ocurrió un error inesperado. Intenta de nuevo en un momento.");
         return handleExceptionInternal(ex, cuerpo, new HttpHeaders(), HttpStatus.INTERNAL_SERVER_ERROR, request);
     }
 
-    /** Parámetros de ruta o de consulta que no cumplen sus restricciones (@Positive, @Pattern...). */
+    /**
+     * Restricciones en los parámetros del método: de ruta o de consulta (@Positive, @Pattern...),
+     * y también el cuerpo @Valid cuando el método combina ambos. En ese caso los errores del cuerpo
+     * llegan como {@link FieldError} y se reportan con el nombre del campo, no con el del parámetro.
+     */
     @Override
     protected ResponseEntity<Object> handleHandlerMethodValidationException(
             HandlerMethodValidationException ex, HttpHeaders headers, HttpStatusCode status, WebRequest request) {
         List<ErrorCampo> errores = ex.getParameterValidationResults().stream()
                 .flatMap(resultado -> resultado.getResolvableErrors().stream()
-                        .map(error -> new ErrorCampo(
-                                resultado.getMethodParameter().getParameterName(), error.getDefaultMessage())))
+                        .map(error -> error instanceof FieldError fieldError
+                                ? new ErrorCampo(fieldError.getField(), mensajeCampo(fieldError))
+                                : new ErrorCampo(
+                                        resultado.getMethodParameter().getParameterName(), error.getDefaultMessage())))
                 .toList();
         return validacion(ex, errores, headers, request);
     }
@@ -158,6 +186,12 @@ public class ManejadorErrores extends ResponseEntityExceptionHandler {
             return switch (status.value()) {
                 case 400 -> new TextoError("Solicitud inválida",
                         "La solicitud no es válida.", "SOLICITUD_INVALIDA");
+                case 401 -> new TextoError("No autenticado",
+                        "Debes iniciar sesión para continuar.", "NO_AUTENTICADO");
+                case 403 -> new TextoError("Acceso denegado",
+                        "No tienes permiso para hacer esta operación.", "ACCESO_DENEGADO");
+                case 409 -> new TextoError("Conflicto",
+                        "La operación entra en conflicto con el estado actual de los datos.", "CONFLICTO");
                 case 404 -> new TextoError("Recurso no encontrado",
                         "No encontramos lo que buscas.", "RECURSO_NO_ENCONTRADO");
                 case 405 -> new TextoError("Método no permitido",
