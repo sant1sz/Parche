@@ -1,0 +1,69 @@
+name: CI
+
+# Las ramas de función se prueban en su pull request; el push solo dispara en main,
+# así un commit a una rama con PR abierto no corre el CI dos veces.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend (Java 21, Maven)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+
+      # Las pruebas usan Testcontainers: el runner de Ubuntu ya trae Docker.
+      - name: Compilar y probar
+        run: ./mvnw -B verify
+
+      - name: Guardar reportes de pruebas
+        if: failure()
+        uses: actions/upload-artifact@v5
+        with:
+          name: reportes-pruebas-backend
+          path: backend/target/surefire-reports/
+          retention-days: 7
+
+  web:
+    name: Web (Next.js)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: web/.nvmrc
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Compilar
+        run: npm run build
