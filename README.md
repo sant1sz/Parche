@@ -162,8 +162,16 @@ Todos los errores usan el mismo cuerpo ([RFC 9457](https://www.rfc-editor.org/rf
 ## Base de datos y datos de ejemplo
 
 - El esquema se define **solo** con migraciones versionadas en `db/migration` (`V{n}__descripcion.sql`). Las migraciones ya aplicadas no se editan.
-- Los datos simulados de Café La Ceiba viven aparte, en `db/demo/R__demo_cafe_la_ceiba.sql`. Es una migración repetible de Flyway que se carga solo con el perfil `demo`. Es idempotente: si cambias el archivo, Flyway la vuelve a ejecutar y solo agrega lo que falte, sin duplicar ni pisar datos.
-- Sin el perfil `demo`, la base queda con el esquema vacío.
+- Los datos simulados de Café La Ceiba viven aparte, en `db/demo/R__demo_cafe_la_ceiba.sql`. Es una migración repetible de Flyway que se carga solo con el perfil `demo`.
+- Flyway la vuelve a ejecutar entera cada vez que cambia el archivo. Sus `INSERT` usan `ON CONFLICT DO NOTHING` por nombre (o por número y token, en las mesas), así que no duplica lo que sigue igual en la base. Pero si renombraste o borraste desde la aplicación un producto, una categoría o una mesa, **editar el archivo vuelve a insertar la fila original**, y los productos de una categoría renombrada dejan de insertarse.
+- Para volver a la demo original, reinicia la base local (borra todos sus datos):
+
+  ```powershell
+  docker compose down -v
+  docker compose up -d
+  ```
+
+- Sin el perfil `demo`, una base nueva queda con el esquema vacío. Una base que ya cargó la demo también arranca sin el perfil (Flyway ignora la migración repetible que no encuentra) y conserva los datos que tenía.
 
 ## Pruebas
 

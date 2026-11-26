@@ -2,8 +2,17 @@
 -- Ningún precio, mesa ni producto corresponde a un negocio real.
 --
 -- Migración repetible: Flyway la carga solo con el perfil "demo" (db/demo) y la vuelve a
--- ejecutar cuando cambia su contenido. Es idempotente: cada INSERT usa ON CONFLICT DO NOTHING
--- sobre una clave natural, así que no duplica filas ni pisa cambios hechos desde la aplicación.
+-- ejecutar entera cada vez que cambia el contenido de este archivo.
+--
+-- Cada INSERT usa ON CONFLICT DO NOTHING sobre una clave natural (slug del negocio, número y
+-- token de mesa, nombre de categoría o de producto). Ejecutarla de nuevo sin cambios en la base
+-- no duplica nada, pero NO protege los cambios hechos desde la aplicación:
+--   - si se renombra o borra un producto, una categoría o una mesa, la siguiente ejecución
+--     vuelve a insertar la fila original junto a la editada;
+--   - si se renombra una categoría, sus productos de este archivo ya no encuentran su categoría
+--     y no se insertan.
+-- Para volver a la demo original, reinicia la base: docker compose down -v && docker compose up -d
+--
 -- Los tokens de mesa son fijos para que los QR de la demo no cambien entre entornos.
 
 INSERT INTO negocio (nombre, slug, barrio, ciudad, es_demo)
